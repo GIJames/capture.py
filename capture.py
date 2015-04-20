@@ -1,6 +1,8 @@
 import socket
+import mysql.connector
+from mysql.connector import errorcode
 
-UDP_IP= "<VPN ip address goes here>"
+UDP_IP= "<IP address goes here>"
 UDP_PORT = 11774
 
 def strip_non_ascii(string):
@@ -20,8 +22,7 @@ def find_split_string(string):
 i = 0
 
 strings = []
-
-f = open("out.txt", "w")
+type = {'name':'', 'mode':''}
 
 while True:
 	sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -37,11 +38,26 @@ while True:
 				k = k + len(found) * 2
 			else:
 				k = k + 1
-	if len(strings) > 1:
-		f.write('capture ' + str(i) + ':\n')
-		f.write('\t' + strings[1][1:len(strings[1])] + '\n')
-		for s in range(2, len(strings)):
-			f.write('\t' + strings[s] + '\n')
+	if len(strings) > 2:
+		type = {'name':strings[1][1:len(strings[1])], 'mode':strings[2]}
+		try:
+			cnx = mysql.connector.connect([REDACTED])
+		except mysql.connector.Error as err:
+		  if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
+			print("Something is wrong with your user name or password")
+		  elif err.errno == errorcode.ER_BAD_DB_ERROR:
+			print("Database does not exist")
+		  else:
+			print(err)
+		else:
+			cursor = cnx.cursor()
+			clear_servers = ("DELETE FROM NameMode WHERE name = %(name)s")
+			cursor.execute(clear_servers, type)
+			add_server = ("INSERT INTO NameMode (name,mode) VALUES (%(name)s, %(mode)s)")
+			cursor.execute(add_server, type)
+			cnx.commit()
+			cursor.close()
+			cnx.close()
+
 	strings = []
 	i = i+1
-f.close()
